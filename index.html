@@ -50,6 +50,12 @@
     background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
   .sortbar .sort.active { color: var(--text); border-color: var(--grid-strong); font-weight: 600; }
   .sortbar .sort:hover { color: var(--text); }
+  .filter { display: block; margin: 0 16px 8px; padding: 6px 9px; font: inherit; font-size: 12px;
+    border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--text); }
+  .filter:focus { outline: none; border-color: var(--accent); }
+  .grp-h { position: sticky; top: 0; background: var(--surface); font-size: 11px; color: var(--text-3);
+    padding: 7px 10px 4px; z-index: 1; letter-spacing: .3px; }
+  .grp-empty { color: var(--text-3); font-size: 12px; padding: 2px 12px 8px; }
   .toolbar { display: flex; gap: 8px; padding: 0 16px 10px; }
   .toolbar button { flex: 1; font: inherit; font-size: 12px; padding: 5px 0; cursor: pointer;
     background: var(--bg); color: var(--text-2); border: 1px solid var(--border); border-radius: 6px; }
@@ -110,6 +116,7 @@
 <div class="app" id="app" hidden>
   <aside class="sidebar">
     <div class="cap" id="roster-note"></div>
+    <input class="filter" id="filter" type="search" placeholder="搜索球员…" autocomplete="off">
     <div class="sortbar"><span>排序</span>
       <button class="sort" data-key="utr">UTR</button>
       <button class="sort" data-key="name">名字</button>
@@ -237,22 +244,35 @@ function boot(payload){
       if(va==null) return 1; if(vb==null) return -1; return (va-vb)*sortDir; });
     return idx;
   };
-  const list=$('list');
-  function renderList(){
-    list.innerHTML='';
-    order().forEach(i=>{
-      const p=P[i], v=lastVal(p.data);
-      const row=document.createElement('label');
-      row.className='row'; row.dataset.on=checked[i]?'1':'0';
-      row.innerHTML=`<input type="checkbox" ${checked[i]?'checked':''}>
-        <span class="swatch" style="background:${p.color}"></span>
-        <span class="name">${p.name}</span>
-        <span class="val">${v==null?'–':v.toFixed(2)}</span>`;
-      row.querySelector('input').addEventListener('change',e=>{ checked[i]=e.target.checked;
-        row.dataset.on=checked[i]?'1':'0'; mChart.setVisible(i,checked[i]); });
-      list.appendChild(row);
-    });
+  const list=$('list'), filter=$('filter');
+  function rowEl(i){
+    const p=P[i], v=lastVal(p.data);
+    const row=document.createElement('label');
+    row.className='row'; row.dataset.on=checked[i]?'1':'0';
+    row.innerHTML=`<input type="checkbox" ${checked[i]?'checked':''}>
+      <span class="swatch" style="background:${p.color}"></span>
+      <span class="name">${p.name}</span>
+      <span class="val">${v==null?'–':v.toFixed(2)}</span>`;
+    row.querySelector('input').addEventListener('change',e=>{ checked[i]=e.target.checked;
+      mChart.setVisible(i,checked[i]); renderList(); });   // 重画 -> 该球员在两栏间移动
+    return row;
   }
+  function section(title, total, idxs){
+    const box=document.createElement('div');
+    const h=document.createElement('div'); h.className='grp-h'; h.textContent=`${title} ${total}`; box.appendChild(h);
+    if(!idxs.length){ const e=document.createElement('div'); e.className='grp-empty'; e.textContent='—'; box.appendChild(e); }
+    else idxs.forEach(i=>box.appendChild(rowEl(i)));
+    return box;
+  }
+  function renderList(){
+    const q=filter.value.trim().toLowerCase(), ord=order();
+    const on=ord.filter(i=>checked[i]), off=ord.filter(i=>!checked[i]);
+    const m=i=>!q||P[i].name.toLowerCase().includes(q);
+    list.innerHTML='';
+    list.appendChild(section('已显示', on.length, on.filter(m)));
+    list.appendChild(section('未显示', off.length, off.filter(m)));
+  }
+  filter.addEventListener('input', renderList);
   function setAll(fn){ P.forEach((_,i)=>checked[i]=fn(i)); mChart.setAll(checked.slice()); renderList(); }
   $('all').onclick=()=>setAll(()=>true);
   $('none').onclick=()=>setAll(()=>false);
