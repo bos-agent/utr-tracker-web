@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UTR Tracker</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f4f2; --surface: #fcfcfb; --border: #e3e2de;
+    --grid: #ecebe7; --grid-strong: #c9c8c2;
+    --text: #0b0b0b; --text-2: #52514e; --text-3: #85837d; --accent: #2a78d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #121211; --surface: #1a1a19; --border: #2f2f2c;
+      --grid: #2a2a27; --grid-strong: #3d3d39;
+      --text: #f3f2ec; --text-2: #c3c2b7; --text-3: #8f8e85; --accent: #3987e5;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); display: flex; flex-direction: column;
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; }
+
+  /* passcode 门 */
+  .gate { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+  .gatecard { width: 300px; max-width: 88vw; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 26px 24px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.10); }
+  .gatecard .gt { font-size: 17px; font-weight: 650; }
+  .gatecard .gs { color: var(--text-3); font-size: 13px; margin-top: -6px; }
+  .gatecard input { font: inherit; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text); }
+  .gatecard input:focus { outline: none; border-color: var(--accent); }
+  .gatecard button { font: inherit; font-weight: 600; padding: 9px 0; border: none; border-radius: 8px;
+    background: var(--accent); color: #fff; cursor: pointer; }
+  .gatecard button:disabled { opacity: .6; cursor: default; }
+  .gerr { color: #e34948; font-size: 12.5px; }
+
+  .topbar { display: flex; align-items: center; gap: 20px; padding: 0 20px; height: 52px; flex: none;
+    background: var(--surface); border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 600; letter-spacing: .2px; }
+  .tabs { display: flex; gap: 4px; }
+  .tab { font: inherit; font-size: 13px; padding: 7px 14px; border: none; background: none; color: var(--text-3);
+    cursor: pointer; border-radius: 7px; }
+  .tab.active { color: var(--text); background: var(--bg); font-weight: 600; }
+  .tab:hover:not(.active) { color: var(--text-2); }
+  .gen { margin-left: auto; color: var(--text-3); font-size: 11px; }
+
+  .views { flex: 1; min-height: 0; }
+  .view { height: 100%; }
+  .view[data-view="multi"] { display: flex; }
+  .view[data-view="me"] { display: flex; flex-direction: column; padding: 20px 24px; }
+
+  .sidebar { width: 250px; flex: none; background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; }
+  .sidebar .cap { font-size: 12px; color: var(--text-3); padding: 14px 16px 8px; }
+  .sortbar { display: flex; align-items: center; gap: 6px; padding: 0 16px 8px; font-size: 12px; color: var(--text-3); }
+  .sortbar .sort { font: inherit; font-size: 12px; padding: 3px 8px; cursor: pointer; color: var(--text-2);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+  .sortbar .sort.active { color: var(--text); border-color: var(--grid-strong); font-weight: 600; }
+  .sortbar .sort:hover { color: var(--text); }
+  .toolbar { display: flex; gap: 8px; padding: 0 16px 10px; }
+  .toolbar button { flex: 1; font: inherit; font-size: 12px; padding: 5px 0; cursor: pointer;
+    background: var(--bg); color: var(--text-2); border: 1px solid var(--border); border-radius: 6px; }
+  .toolbar button:hover { color: var(--text); border-color: var(--grid-strong); }
+  .list { flex: 1; overflow-y: auto; padding: 4px 8px 16px; }
+  .row { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 7px; cursor: pointer; user-select: none; }
+  .row:hover { background: var(--bg); }
+  .row input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.06) inset; }
+  .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .val { color: var(--text-2); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .row[data-on="0"] { color: var(--text-3); }
+  .row[data-on="0"] .swatch { opacity: .22; }
+  .row[data-on="0"] .val { color: var(--text-3); }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 20px 24px; }
+  .head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; gap: 12px; }
+  .head .t { font-size: 16px; font-weight: 600; }
+  .head .sub { color: var(--text-3); font-size: 12px; }
+  .mestat { font-variant-numeric: tabular-nums; margin-bottom: 12px; }
+  .mestat b { font-size: 26px; font-weight: 650; }
+  .mestat small { color: var(--text-3); font-size: 12px; margin-left: 6px; }
+  .card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px 8px; min-height: 360px; }
+  .chart-wrap { position: relative; height: 100%; width: 100%; }
+  svg { display: block; width: 100%; height: 100%; }
+  .empty { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: var(--text-3); }
+
+  .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.14); min-width: 140px; z-index: 5; }
+  .tip-d { color: var(--text-3); margin-bottom: 5px; font-variant-numeric: tabular-nums; }
+  .tip-r { display: flex; align-items: center; gap: 7px; padding: 1px 0; }
+  .tip-r .sw { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  .tip-r .tn { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tip-r .tv { color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 760px) {
+    .view[data-view="multi"] { flex-direction: column; }
+    .sidebar { width: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    .list { max-height: 150px; }
+    .main, .view[data-view="me"] { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+<!-- passcode 门 -->
+<div class="gate" id="gate">
+  <form class="gatecard" id="gateform">
+    <div class="gt">UTR Tracker</div>
+    <div class="gs">输入访问口令</div>
+    <input type="password" id="pass" autocomplete="current-password" autofocus>
+    <button type="submit" id="unlock">进入</button>
+    <div class="gerr" id="gerr" hidden></div>
+  </form>
+</div>
+
+<header class="topbar" id="app" hidden>
+  <div class="brand">UTR Tracker</div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="me">我的走势</button>
+    <button class="tab" data-tab="multi">多球员</button>
+  </nav>
+  <span class="gen" id="gen"></span>
+</header>
+
+<div class="views" id="views" hidden>
+  <section class="view" data-view="me">
+    <div class="head"><div class="t">我的单打 UTR 历史</div><div class="sub" id="me-range"></div></div>
+    <div class="mestat"><b id="me-cur">–</b><small id="me-who">当前</small></div>
+    <div class="card"><div class="chart-wrap" id="me-wrap">
+      <svg id="me-svg" preserveAspectRatio="none"></svg>
+      <div class="tip" id="me-tip" hidden></div>
+    </div></div>
+  </section>
+
+  <section class="view" data-view="multi" hidden>
+    <aside class="sidebar">
+      <div class="cap" id="roster-note"></div>
+      <div class="sortbar"><span>排序</span>
+        <button class="sort" data-key="utr">UTR</button>
+        <button class="sort" data-key="name">名字</button>
+      </div>
+      <div class="toolbar">
+        <button id="all">全选</button><button id="none">全不选</button><button id="reset">默认</button>
+      </div>
+      <div class="list" id="list"></div>
+    </aside>
+    <main class="main">
+      <div class="head"><div class="t">单打 UTR 走势</div><div class="sub" id="m-range"></div></div>
+      <div class="card"><div class="chart-wrap" id="m-wrap">
+        <svg id="m-svg" preserveAspectRatio="none"></svg>
+        <div class="empty" id="m-empty">没有勾选球员</div>
+        <div class="tip" id="m-tip" hidden></div>
+      </div></div>
+    </main>
+  </section>
+</div>
+
+<script>
+const PALETTE = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#2ca02c","#7c6ff0","#e34948",
+  "#a8641b","#14b8a6","#d556c4","#5a54d6","#0891b2","#9333ea","#4d7c0f"];
+const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const short = n => n.length>16 ? n.slice(0,15)+"…" : n;
+const $ = id => document.getElementById(id);
+
+// ---------- 解密 ----------
+async function decryptPayload(blob, passcode){
+  const raw = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(passcode), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey(
+    { name:"PBKDF2", salt: raw(blob.salt), iterations: blob.iter, hash: blob.hash || "SHA-256" },
+    base, { name:"AES-GCM", length:256 }, false, ["decrypt"]);
+  const pt = await crypto.subtle.decrypt({ name:"AES-GCM", iv: raw(blob.iv) }, key, raw(blob.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+// ---------- 通用折线图(单打) ----------
+function makeChart({ svg, wrap, tip, labels, series, endLabels=false, xfmt }){
+  const vis = series.map(()=>true);
+  let lo=Infinity, hi=-Infinity;
+  series.forEach(s=>s.data.forEach(v=>{ if(v==null) return; if(v<lo)lo=v; if(v>hi)hi=v; }));
+  if(!isFinite(lo)){ lo=0; hi=1; }
+  lo=Math.floor(lo*2)/2-0.25; hi=Math.ceil(hi*2)/2+0.25;
+  const n=labels.length; let S=null;
+
+  function render(){
+    const W=Math.max(320,wrap.clientWidth||900), H=Math.max(300,wrap.clientHeight||420);
+    const L=44, R=W-(endLabels?150:16), T=14, B=H-30, pw=R-L, ph=B-T;
+    const x=i=> L+(n<=1?0:i/(n-1))*pw, y=v=> T+(1-(v-lo)/(hi-lo))*ph;
+    let s='';
+    for(let k=0;k<5;k++){ const v=lo+(hi-lo)*k/4, yy=y(v);
+      s+=`<line x1="${L}" y1="${yy.toFixed(1)}" x2="${R}" y2="${yy.toFixed(1)}" stroke="${css('--grid')}" stroke-width="1"/>`;
+      s+=`<text x="${L-8}" y="${(yy+3.5).toFixed(1)}" text-anchor="end" fill="${css('--text-3')}" font-size="11">${v.toFixed(1)}</text>`; }
+    const target=Math.max(2,Math.floor(pw/76)), step=Math.max(1,Math.ceil((n-1)/target));
+    for(let i=0;i<n;i+=step){ const xx=x(i);
+      s+=`<line x1="${xx.toFixed(1)}" y1="${B}" x2="${xx.toFixed(1)}" y2="${B+4}" stroke="${css('--grid-strong')}" stroke-width="1"/>`;
+      s+=`<text x="${xx.toFixed(1)}" y="${B+16}" text-anchor="middle" fill="${css('--text-3')}" font-size="11">${xfmt(labels[i])}</text>`; }
+    s+=`<line x1="${L}" y1="${B}" x2="${R}" y2="${B}" stroke="${css('--border')}" stroke-width="1"/>`;
+    const on=vis.flatMap((v,i)=>v?[i]:[]);
+    const lastOf = d => { for(let i=d.length-1;i>=0;i--) if(d[i]!=null) return {i, v:d[i]}; return null; };
+    on.forEach(idx=>{ const d=series[idx].data; let pts='', pen=false;
+      for(let i=0;i<n;i++){ if(d[i]==null){ pen=false; continue; } pts+=`${pen?'L':'M'}${x(i).toFixed(1)} ${y(d[i]).toFixed(1)} `; pen=true; }
+      s+=`<path d="${pts.trim()}" fill="none" stroke="${series[idx].color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`; });
+    if(endLabels && on.length){
+      const labs=on.map(idx=>({idx, last:lastOf(series[idx].data)})).filter(o=>o.last).map(o=>({idx:o.idx, ry:y(o.last.v)})).sort((a,b)=>a.ry-b.ry);
+      const gap=13; labs.forEach(l=>l.ly=l.ry);
+      for(let k=1;k<labs.length;k++) if(labs[k].ly-labs[k-1].ly<gap) labs[k].ly=labs[k-1].ly+gap;
+      if(labs.length && labs.at(-1).ly>B){ labs.at(-1).ly=B; for(let k=labs.length-2;k>=0;k--) if(labs[k+1].ly-labs[k].ly<gap) labs[k].ly=labs[k+1].ly-gap; }
+      labs.forEach(l=>{ const c=series[l.idx].color;
+        s+=`<path d="M ${R} ${l.ry.toFixed(1)} L ${R+7} ${l.ly.toFixed(1)}" fill="none" stroke="${c}" stroke-width="1" opacity="0.7"/>`;
+        s+=`<circle cx="${R}" cy="${l.ry.toFixed(1)}" r="3" fill="${c}"/>`;
+        s+=`<text x="${R+11}" y="${(l.ly+3.5).toFixed(1)}" fill="${css('--text-2')}" font-size="11">${short(series[l.idx].name)}</text>`; });
+    }
+    s+=`<g id="hover"></g>`;
+    svg.setAttribute('viewBox',`0 0 ${W} ${H}`); svg.innerHTML=s;
+    S={W,H,L,R,T,B,pw,ph,x,y};
+    const e=wrap.querySelector('.empty'); if(e) e.style.display = on.length?'none':'flex';
+  }
+  function hover(i, ev){
+    const g=svg.querySelector('#hover'); if(!g||!S) return;
+    const on=vis.flatMap((v,k)=>v?[k]:[]).filter(k=>series[k].data[i]!=null);
+    if(!on.length){ g.innerHTML=''; tip.hidden=true; return; }
+    const xx=S.x(i);
+    let h=`<line x1="${xx.toFixed(1)}" y1="${S.T}" x2="${xx.toFixed(1)}" y2="${S.B}" stroke="${css('--grid-strong')}" stroke-width="1"/>`;
+    const items=on.map(idx=>({idx,v:series[idx].data[i]})).sort((a,b)=>b.v-a.v);
+    items.forEach(it=> h+=`<circle cx="${xx.toFixed(1)}" cy="${S.y(it.v).toFixed(1)}" r="3.5" fill="${series[it.idx].color}" stroke="${css('--surface')}" stroke-width="1.5"/>`);
+    g.innerHTML=h;
+    tip.innerHTML=`<div class="tip-d">${labels[i]}</div>`+items.map(it=>
+      `<div class="tip-r"><span class="sw" style="background:${series[it.idx].color}"></span><span class="tn">${series[it.idx].name}</span><span class="tv">${it.v.toFixed(2)}</span></div>`).join('');
+    tip.hidden=false;
+    const r=wrap.getBoundingClientRect(); let tx=ev.clientX-r.left+14, ty=ev.clientY-r.top+10;
+    if(tx+tip.offsetWidth>r.width) tx=ev.clientX-r.left-tip.offsetWidth-14;
+    if(ty+tip.offsetHeight>r.height) ty=r.height-tip.offsetHeight-6;
+    tip.style.left=Math.max(4,tx)+'px'; tip.style.top=Math.max(4,ty)+'px';
+  }
+  svg.addEventListener('mousemove', ev=>{ if(!S) return;
+    const r=svg.getBoundingClientRect(); const mx=(ev.clientX-r.left)*(S.W/r.width);
+    let i=Math.round((mx-S.L)/S.pw*(n-1)); i=Math.max(0,Math.min(n-1,i)); hover(i,ev); });
+  svg.addEventListener('mouseleave', ()=>{ const g=svg.querySelector('#hover'); if(g)g.innerHTML=''; tip.hidden=true; });
+  new ResizeObserver(render).observe(wrap);
+  return { render, setVisible:(i,on)=>{vis[i]=on;render();}, setAll:arr=>{arr.forEach((v,i)=>vis[i]=v);render();} };
+}
+
+// ---------- 用 payload 建界面 ----------
+let mChart=null;
+function boot(payload){
+  $('gen').textContent = "更新于 "+(payload.generatedAt||"");
+  const P = payload.multi.players.map((p,i)=>({ ...p, color: PALETTE[i % PALETTE.length] }));
+  const labels = payload.multi.labels;
+  const lastVal = d => { for(let i=d.length-1;i>=0;i--) if(d[i]!=null) return d[i]; return null; };
+
+  // 我的走势
+  let meChart={render:()=>{}};
+  if(payload.owner && payload.owner.data.length){
+    const o=payload.owner;
+    meChart = makeChart({ svg:$('me-svg'), wrap:$('me-wrap'), tip:$('me-tip'), labels:o.labels, xfmt:d=>d.slice(0,7),
+      series:[{name:o.name, color:PALETTE[0], data:o.data}] });
+    meChart.render();
+    $('me-range').textContent = o.labels[0]+" → "+o.labels.at(-1);
+    $('me-cur').textContent = o.data.at(-1)!=null ? o.data.at(-1).toFixed(2) : "–";
+    $('me-who').textContent = "当前 · "+o.name;
+  }
+
+  // 多球员
+  mChart = makeChart({ svg:$('m-svg'), wrap:$('m-wrap'), tip:$('m-tip'), endLabels:true, xfmt:d=>d.slice(5),
+    labels, series: P.map(p=>({name:p.name, color:p.color, data:p.data})) });
+  $('m-range').textContent = labels.length ? labels[0]+" → "+labels.at(-1) : "暂无数据";
+  $('roster-note').textContent = P.length+" 名球员";
+
+  const checked = P.map(p=>!!p.default);
+  P.forEach((_,i)=> mChart.setVisible(i, checked[i]));
+
+  let sortKey="roster", sortDir=1;   // roster=文件顺序
+  const order = () => {
+    const idx = P.map((_,i)=>i);
+    if(sortKey==="name") idx.sort((a,b)=> P[a].name.localeCompare(P[b].name)*sortDir);
+    else if(sortKey==="utr") idx.sort((a,b)=>{ const va=lastVal(P[a].data), vb=lastVal(P[b].data);
+      if(va==null) return 1; if(vb==null) return -1; return (va-vb)*sortDir; });
+    return idx;
+  };
+  const list=$('list');
+  function renderList(){
+    list.innerHTML='';
+    order().forEach(i=>{
+      const p=P[i], v=lastVal(p.data);
+      const row=document.createElement('label');
+      row.className='row'; row.dataset.on=checked[i]?'1':'0';
+      row.innerHTML=`<input type="checkbox" ${checked[i]?'checked':''}>
+        <span class="swatch" style="background:${p.color}"></span>
+        <span class="name">${p.name}</span>
+        <span class="val">${v==null?'–':v.toFixed(2)}</span>`;
+      row.querySelector('input').addEventListener('change',e=>{ checked[i]=e.target.checked;
+        row.dataset.on=checked[i]?'1':'0'; mChart.setVisible(i,checked[i]); });
+      list.appendChild(row);
+    });
+  }
+  function setAll(fn){ P.forEach((_,i)=>checked[i]=fn(i)); mChart.setAll(checked.slice()); renderList(); }
+  $('all').onclick=()=>setAll(()=>true);
+  $('none').onclick=()=>setAll(()=>false);
+  $('reset').onclick=()=>setAll(i=>!!P[i].default);
+  document.querySelectorAll('.sort').forEach(btn=> btn.onclick=()=>{
+    const k=btn.dataset.key;
+    if(sortKey===k) sortDir=-sortDir; else { sortKey=k; sortDir = k==="utr"?-1:1; }
+    document.querySelectorAll('.sort').forEach(b=>{ const on=b.dataset.key===sortKey;
+      b.classList.toggle('active',on); b.textContent=(b.dataset.key==="utr"?"UTR":"名字")+(on?(sortDir>0?" ↑":" ↓"):""); });
+    renderList();
+  });
+  renderList();
+
+  // tab:切过来按当前尺寸重画(隐藏时 wrap 尺寸为 0)
+  const charts={ me:meChart, multi:mChart };
+  document.querySelectorAll('.tab').forEach(t=> t.onclick=()=>{
+    const name=t.dataset.tab;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
+    document.querySelectorAll('.view').forEach(v=> v.hidden = v.dataset.view!==name);
+    charts[name].render();
+  });
+
+  $('app').hidden=false; $('views').hidden=false;
+}
+
+// ---------- 门 / 加载 ----------
+async function tryUnlock(passcode, silent){
+  const btn=$('unlock'), err=$('gerr');
+  try{
+    btn.disabled=true; err.hidden=true;
+    const blob = await (await fetch('data.enc', {cache:'no-store'})).json();
+    const payload = await decryptPayload(blob, passcode);
+    try{ sessionStorage.setItem('utr_pass', passcode); }catch(_){}
+    boot(payload);
+    $('gate').hidden=true;
+  }catch(e){
+    if(!silent){ err.textContent="口令不对,或数据未加载"; err.hidden=false; }
+    btn.disabled=false;
+    throw e;
+  }
+}
+$('gateform').addEventListener('submit', e=>{ e.preventDefault();
+  const pass=$('pass').value; if(pass) tryUnlock(pass,false).catch(()=>{}); });
+// session 内记住口令,自动进
+(function(){ let saved=null; try{ saved=sessionStorage.getItem('utr_pass'); }catch(_){}
+  if(saved) tryUnlock(saved,true).catch(()=>{ /* 失效则显示门 */ }); })();
+</script>
+</body>
+</html>
