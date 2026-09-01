@@ -36,30 +36,39 @@
   .gatecard button:disabled { opacity: .6; cursor: default; }
   .gerr { color: #e34948; font-size: 12.5px; }
 
-  .topbar { display: flex; align-items: center; gap: 14px; padding: 0 20px; height: 52px; flex: none;
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 0 16px 0 20px; height: 52px; flex: none;
     background: var(--surface); border-bottom: 1px solid var(--border); }
   .brand { font-weight: 600; letter-spacing: .2px; }
+  .tabs { display: flex; gap: 4px; }
+  .tab { font: inherit; font-size: 13px; padding: 7px 13px; border: none; background: none; color: var(--text-3);
+    cursor: pointer; border-radius: 7px; white-space: nowrap; }
+  .tab.active { color: var(--text); background: var(--bg); font-weight: 600; }
+  .tab:hover:not(.active) { color: var(--text-2); }
   .gen { margin-left: auto; color: var(--text-3); font-size: 11px; }
   .menu { display: none; font: inherit; font-size: 18px; line-height: 1; background: none; border: none;
     color: var(--text-2); cursor: pointer; padding: 4px 6px; border-radius: 6px; }
   .menu:hover { color: var(--text); background: var(--bg); }
   .scrim { display: none; }
 
-  .app { flex: 1; min-height: 0; display: flex; }
+  .views { flex: 1; min-height: 0; }
+  .view { height: 100%; }
+  .view[data-view="multi"] { display: flex; }
+  .view[data-view="rank"], .view[data-view="me"] { display: flex; flex-direction: column; padding: 20px 24px; }
+
   .sidebar { width: 250px; flex: none; background: var(--surface); border-right: 1px solid var(--border);
     display: flex; flex-direction: column; }
   .sidebar .cap { font-size: 12px; color: var(--text-3); padding: 14px 16px 8px; }
-  .sortbar { display: flex; align-items: center; gap: 6px; padding: 0 16px 8px; font-size: 12px; color: var(--text-3); }
-  .sortbar .sort { font: inherit; font-size: 12px; padding: 3px 8px; cursor: pointer; color: var(--text-2);
-    background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
-  .sortbar .sort.active { color: var(--text); border-color: var(--grid-strong); font-weight: 600; }
-  .sortbar .sort:hover { color: var(--text); }
   .filter { display: block; margin: 0 16px 8px; padding: 6px 9px; font: inherit; font-size: 12px;
     border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--text); }
   .filter:focus { outline: none; border-color: var(--accent); }
   .grp-h { position: sticky; top: 0; background: var(--surface); font-size: 11px; color: var(--text-3);
     padding: 7px 10px 4px; z-index: 1; letter-spacing: .3px; }
   .grp-empty { color: var(--text-3); font-size: 12px; padding: 2px 12px 8px; }
+  .sortbar { display: flex; align-items: center; gap: 6px; padding: 0 16px 8px; font-size: 12px; color: var(--text-3); }
+  .sortbar .sort { font: inherit; font-size: 12px; padding: 3px 8px; cursor: pointer; color: var(--text-2);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+  .sortbar .sort.active { color: var(--text); border-color: var(--grid-strong); font-weight: 600; }
+  .sortbar .sort:hover { color: var(--text); }
   .toolbar { display: flex; gap: 8px; padding: 0 16px 10px; }
   .toolbar button { flex: 1; font: inherit; font-size: 12px; padding: 5px 0; cursor: pointer;
     background: var(--bg); color: var(--text-2); border: 1px solid var(--border); border-radius: 6px; }
@@ -79,11 +88,25 @@
   .head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; gap: 12px; }
   .head .t { font-size: 16px; font-weight: 600; }
   .head .sub { color: var(--text-3); font-size: 12px; }
+  .mestat { font-variant-numeric: tabular-nums; margin-bottom: 12px; }
+  .mestat b { font-size: 26px; font-weight: 650; }
+  .mestat small { color: var(--text-3); font-size: 12px; margin-left: 6px; }
   .card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
     padding: 12px 14px 8px; min-height: 360px; }
   .chart-wrap { position: relative; height: 100%; width: 100%; }
   svg { display: block; width: 100%; height: 100%; }
   .empty { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: var(--text-3); }
+
+  /* 排名表 */
+  .tablecard { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: auto; }
+  table.rank { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  table.rank th, table.rank td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.rank th { position: sticky; top: 0; background: var(--surface); color: var(--text-3); font-weight: 600; font-size: 12px; z-index: 1; }
+  table.rank td.num, table.rank td.utr, table.rank th.num, table.rank th.utr { text-align: right; }
+  table.rank td.rk { color: var(--text-3); width: 1%; }
+  table.rank td.nm { width: 100%; display: flex; align-items: center; gap: 9px; }
+  table.rank td.utr { font-weight: 600; }
+  table.rank tr:hover td { background: var(--bg); }
 
   .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border);
     border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.14); min-width: 140px; z-index: 5; }
@@ -94,15 +117,14 @@
   .tip-r .tv { color: var(--text-2); font-variant-numeric: tabular-nums; }
 
   @media (max-width: 760px) {
-    .menu { display: block; }
-    .sidebar { position: fixed; top: 52px; left: 0; bottom: 0; width: min(280px, 82vw); z-index: 40;
-      transform: translateX(-100%); transition: transform .22s ease; border-right: 1px solid var(--border);
-      box-shadow: 2px 0 18px rgba(0,0,0,.18); }
-    body.nav-open .sidebar { transform: none; }
+    body[data-tab="multi"] .menu { display: block; }
+    .view[data-view="multi"] .sidebar { position: fixed; top: 52px; left: 0; bottom: 0; width: min(280px, 82vw); z-index: 40;
+      transform: translateX(-100%); transition: transform .22s ease; box-shadow: 2px 0 18px rgba(0,0,0,.18); }
+    body.nav-open .view[data-view="multi"] .sidebar { transform: none; }
     .scrim { display: block; position: fixed; inset: 52px 0 0 0; background: rgba(0,0,0,.35);
       z-index: 39; opacity: 0; pointer-events: none; transition: opacity .22s; }
     body.nav-open .scrim { opacity: 1; pointer-events: auto; }
-    .main { padding: 14px 16px; }
+    .main, .view[data-view="rank"], .view[data-view="me"] { padding: 14px 16px; }
   }
 </style>
 </head>
@@ -120,31 +142,58 @@
 <header class="topbar" id="topbar" hidden>
   <button class="menu" id="menu" aria-label="菜单">☰</button>
   <div class="brand">UTR Tracker</div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="rank">排名</button>
+    <button class="tab" data-tab="multi">多球员</button>
+    <button class="tab" data-tab="me">我的走势</button>
+  </nav>
   <span class="gen" id="gen"></span>
 </header>
 
 <div class="scrim" id="scrim"></div>
-<div class="app" id="app" hidden>
-  <aside class="sidebar">
-    <div class="cap" id="roster-note"></div>
-    <input class="filter" id="filter" type="search" placeholder="搜索球员…" autocomplete="off">
-    <div class="sortbar"><span>排序</span>
-      <button class="sort" data-key="utr">UTR</button>
-      <button class="sort" data-key="name">名字</button>
-    </div>
-    <div class="toolbar">
-      <button id="all">全选</button><button id="none">全不选</button><button id="reset">默认</button>
-    </div>
-    <div class="list" id="list"></div>
-  </aside>
-  <main class="main">
-    <div class="head"><div class="t">单打 UTR 走势</div><div class="sub" id="m-range"></div></div>
-    <div class="card"><div class="chart-wrap" id="m-wrap">
-      <svg id="m-svg" preserveAspectRatio="none"></svg>
-      <div class="empty" id="m-empty">没有勾选球员</div>
-      <div class="tip" id="m-tip" hidden></div>
+
+<div class="views" id="views" hidden>
+  <!-- Tab1 排名 -->
+  <section class="view" data-view="rank">
+    <div class="head"><div class="t">按 UTR 排名（单打）</div><div class="sub" id="rank-sub"></div></div>
+    <div class="tablecard"><table class="rank"><thead>
+      <tr><th class="num">#</th><th>球员</th><th class="utr">单打 UTR</th></tr>
+    </thead><tbody id="ranktbody"></tbody></table></div>
+  </section>
+
+  <!-- Tab2 多球员 -->
+  <section class="view" data-view="multi" hidden>
+    <aside class="sidebar">
+      <div class="cap" id="roster-note"></div>
+      <input class="filter" id="filter" type="search" placeholder="搜索球员…" autocomplete="off">
+      <div class="sortbar"><span>排序</span>
+        <button class="sort" data-key="utr">UTR</button>
+        <button class="sort" data-key="name">名字</button>
+      </div>
+      <div class="toolbar">
+        <button id="all">全选</button><button id="none">全不选</button><button id="reset">默认</button>
+      </div>
+      <div class="list" id="list"></div>
+    </aside>
+    <main class="main">
+      <div class="head"><div class="t">单打 UTR 走势</div><div class="sub" id="m-range"></div></div>
+      <div class="card"><div class="chart-wrap" id="m-wrap">
+        <svg id="m-svg" preserveAspectRatio="none"></svg>
+        <div class="empty" id="m-empty">没有勾选球员</div>
+        <div class="tip" id="m-tip" hidden></div>
+      </div></div>
+    </main>
+  </section>
+
+  <!-- Tab3 我的走势 -->
+  <section class="view" data-view="me" hidden>
+    <div class="head"><div class="t">我的单打 UTR 历史</div><div class="sub" id="me-range"></div></div>
+    <div class="mestat"><b id="me-cur">–</b><small id="me-who">当前</small></div>
+    <div class="card"><div class="chart-wrap" id="me-wrap">
+      <svg id="me-svg" preserveAspectRatio="none"></svg>
+      <div class="tip" id="me-tip" hidden></div>
     </div></div>
-  </main>
+  </section>
 </div>
 
 <script>
@@ -153,6 +202,7 @@ const PALETTE = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#2ca02c","#7
 const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
 const short = n => n.length>16 ? n.slice(0,15)+"…" : n;
 const $ = id => document.getElementById(id);
+const lastVal = d => { for(let i=d.length-1;i>=0;i--) if(d[i]!=null) return d[i]; return null; };
 
 async function decryptPayload(blob, passcode){
   const raw = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
@@ -166,18 +216,14 @@ async function decryptPayload(blob, passcode){
 
 function makeChart({ svg, wrap, tip, labels, series, endLabels=false, xfmt }){
   const vis = series.map(()=>true);
-  const n = labels.length;
-  let S=null;
+  const n = labels.length; let S=null;
   const lastOf = d => { for(let i=d.length-1;i>=0;i--) if(d[i]!=null) return {i, v:d[i]}; return null; };
-
   function render(){
     const on = vis.flatMap((v,i)=>v?[i]:[]);
-    // Y 轴按"当前可见"的球员自适应
     let lo=Infinity, hi=-Infinity;
     on.forEach(idx=> series[idx].data.forEach(v=>{ if(v==null) return; if(v<lo)lo=v; if(v>hi)hi=v; }));
     if(!isFinite(lo)){ lo=0; hi=1; }
     lo=Math.floor(lo*2)/2-0.25; hi=Math.ceil(hi*2)/2+0.25;
-
     const W=Math.max(320,wrap.clientWidth||900), H=Math.max(300,wrap.clientHeight||420);
     const L=44, R=W-(endLabels?150:16), T=14, B=H-30, pw=R-L, ph=B-T;
     const x=i=> L+(n<=1?0:i/(n-1))*pw, y=v=> T+(1-(v-lo)/(hi-lo))*ph;
@@ -237,13 +283,21 @@ function boot(payload){
   $('gen').textContent = "更新于 "+(payload.generatedAt||"");
   const P = payload.multi.players.map((p,i)=>({ ...p, color: PALETTE[i % PALETTE.length] }));
   const labels = payload.multi.labels;
-  const lastVal = d => { for(let i=d.length-1;i>=0;i--) if(d[i]!=null) return d[i]; return null; };
 
+  // ---- Tab1 排名表(按最新单打 UTR 降序) ----
+  const ranked = P.map(p=>({p, v:lastVal(p.data)}))
+                  .sort((a,b)=> (b.v==null?-Infinity:b.v) - (a.v==null?-Infinity:a.v));
+  $('ranktbody').innerHTML = ranked.map((r,i)=>
+    `<tr><td class="rk num">${i+1}</td>`+
+    `<td class="nm"><span class="swatch" style="background:${r.p.color}"></span>${r.p.name}</td>`+
+    `<td class="utr">${r.v==null?'–':r.v.toFixed(2)}</td></tr>`).join('');
+  $('rank-sub').textContent = P.length+" 名球员";
+
+  // ---- Tab2 多球员图 ----
   const mChart = makeChart({ svg:$('m-svg'), wrap:$('m-wrap'), tip:$('m-tip'), endLabels:true, xfmt:d=>d.slice(5),
     labels, series: P.map(p=>({name:p.name, color:p.color, data:p.data})) });
   $('m-range').textContent = labels.length ? labels[0]+" → "+labels.at(-1) : "暂无数据";
   $('roster-note').textContent = P.length+" 名球员";
-
   const checked = P.map(p=>!!p.default);
   P.forEach((_,i)=> mChart.setVisible(i, checked[i]));
 
@@ -265,7 +319,7 @@ function boot(payload){
       <span class="name">${p.name}</span>
       <span class="val">${v==null?'–':v.toFixed(2)}</span>`;
     row.querySelector('input').addEventListener('change',e=>{ checked[i]=e.target.checked;
-      mChart.setVisible(i,checked[i]); renderList(); });   // 重画 -> 该球员在两栏间移动
+      mChart.setVisible(i,checked[i]); renderList(); });
     return row;
   }
   function section(title, total, idxs){
@@ -297,7 +351,32 @@ function boot(payload){
   });
   renderList();
 
-  $('topbar').hidden=false; $('app').hidden=false;
+  // ---- Tab3 我的走势 ----
+  let meChart={render:()=>{}};
+  const me = payload.owner;
+  if(me && me.data && me.data.length){
+    meChart = makeChart({ svg:$('me-svg'), wrap:$('me-wrap'), tip:$('me-tip'), labels:me.labels, xfmt:d=>d.slice(0,7),
+      series:[{name:me.name, color:PALETTE[0], data:me.data}] });
+    $('me-range').textContent = me.labels[0]+" → "+me.labels.at(-1);
+    $('me-cur').textContent = me.data.at(-1)!=null ? me.data.at(-1).toFixed(2) : "–";
+    $('me-who').textContent = "当前 · "+me.name;
+  } else {
+    $('me-range').textContent = "无历史数据"; $('me-who').textContent = "";
+  }
+
+  // ---- tab 切换 ----
+  const charts={ rank:{render:()=>{}}, multi:mChart, me:meChart };
+  document.body.dataset.tab = "rank";
+  document.querySelectorAll('.tab').forEach(t=> t.onclick=()=>{
+    const name=t.dataset.tab;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
+    document.querySelectorAll('.view').forEach(v=> v.hidden = v.dataset.view!==name);
+    document.body.dataset.tab = name;
+    document.body.classList.remove('nav-open');
+    charts[name].render();
+  });
+
+  $('topbar').hidden=false; $('views').hidden=false;
 }
 
 async function tryUnlock(passcode, silent){
@@ -317,7 +396,6 @@ async function tryUnlock(passcode, silent){
 }
 $('gateform').addEventListener('submit', e=>{ e.preventDefault();
   const pass=$('pass').value; if(pass) tryUnlock(pass,false).catch(()=>{}); });
-// mobile:抽屉开合
 $('menu').onclick = ()=> document.body.classList.toggle('nav-open');
 $('scrim').onclick = ()=> document.body.classList.remove('nav-open');
 (function(){ let saved=null; try{ saved=sessionStorage.getItem('utr_pass'); }catch(_){}
