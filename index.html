@@ -107,6 +107,17 @@
   table.rank td.nm { width: 100%; display: flex; align-items: center; gap: 9px; }
   table.rank td.utr { font-weight: 600; }
   table.rank tr:hover td { background: var(--bg); }
+  th.yrhead { position: relative; }
+  .yrbtn { margin-left: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--bg);
+    color: var(--text-2); border-radius: 5px; font-size: 10px; padding: 1px 6px; font-weight: 400; }
+  .yrbtn.on { color: var(--accent); border-color: var(--accent); }
+  .yrpop { position: absolute; right: 8px; top: 30px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.15); padding: 8px; z-index: 6; max-height: 300px;
+    overflow: auto; min-width: 110px; text-align: left; }
+  .yrpop label { display: flex; gap: 7px; align-items: center; padding: 4px 6px; font-weight: 400;
+    color: var(--text); white-space: nowrap; cursor: pointer; font-size: 12px; }
+  .yrpop label:hover { background: var(--bg); border-radius: 5px; }
+  .yrpop .sep { border-top: 1px solid var(--border); margin: 4px 0; }
 
   .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border);
     border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.14); min-width: 140px; z-index: 5; }
@@ -157,7 +168,7 @@
   <section class="view" data-view="rank">
     <div class="head"><div class="t">按 UTR 排名（单打）</div><div class="sub" id="rank-sub"></div></div>
     <div class="tablecard"><table class="rank"><thead>
-      <tr><th class="num">#</th><th>球员</th><th class="utr">单打 UTR</th><th class="utr">双打 UTR</th><th class="utr">World Junior</th><th class="utr">出生年</th></tr>
+      <tr><th class="num">#</th><th>球员</th><th class="utr">单打 UTR</th><th class="utr">双打 UTR</th><th class="utr">World Junior</th><th class="utr yrhead">出生年 <button class="yrbtn" id="yrbtn" type="button">筛选 ▾</button><div class="yrpop" id="yrpop" hidden></div></th></tr>
     </thead><tbody id="ranktbody"></tbody></table></div>
   </section>
 
@@ -287,14 +298,31 @@ function boot(payload){
   // ---- Tab1 排名表(按最新单打 UTR 降序) ----
   const ranked = P.map(p=>({p, v:lastVal(p.data)}))
                   .sort((a,b)=> (b.v==null?-Infinity:b.v) - (a.v==null?-Infinity:a.v));
-  $('ranktbody').innerHTML = ranked.map((r,i)=>
-    `<tr><td class="rk num">${i+1}</td>`+
-    `<td class="nm"><span class="swatch" style="background:${r.p.color}"></span>${r.p.name}</td>`+
-    `<td class="utr">${r.v==null?'–':r.v.toFixed(2)}</td>`+
-    `<td class="utr">${r.p.doubles==null?'–':r.p.doubles.toFixed(2)}</td>`+
-    `<td class="utr">${r.p.wjRank==null?'–':r.p.wjRank.toLocaleString()}</td>`+
-    `<td class="utr">${r.p.birthYear||'–'}</td></tr>`).join('');
-  $('rank-sub').textContent = P.length+" 名球员";
+  const years = [...new Set(ranked.map(r=> r.p.birthYear || "未知"))]
+                  .sort((a,b)=> a==="未知"?1 : b==="未知"?-1 : Number(b)-Number(a));  // 新→旧,未知置底
+  const selYears = new Set(years);
+  function renderRank(){
+    const rows = ranked.filter(r=> selYears.has(r.p.birthYear || "未知"));
+    $('ranktbody').innerHTML = rows.map((r,i)=>
+      `<tr><td class="rk num">${i+1}</td>`+
+      `<td class="nm"><span class="swatch" style="background:${r.p.color}"></span>${r.p.name}</td>`+
+      `<td class="utr">${r.v==null?'–':r.v.toFixed(2)}</td>`+
+      `<td class="utr">${r.p.doubles==null?'–':r.p.doubles.toFixed(2)}</td>`+
+      `<td class="utr">${r.p.wjRank==null?'–':r.p.wjRank.toLocaleString()}</td>`+
+      `<td class="utr">${r.p.birthYear||'–'}</td></tr>`).join('');
+    $('rank-sub').textContent = rows.length===ranked.length ? `${ranked.length} 名球员` : `${rows.length} / ${ranked.length} 名球员`;
+    $('yrbtn').classList.toggle('on', selYears.size!==years.length);
+  }
+  const pop=$('yrpop');
+  pop.innerHTML = `<label><input type="checkbox" id="yrall" checked> 全部</label><div class="sep"></div>`+
+    years.map(y=>`<label><input type="checkbox" class="yc" value="${y}" checked> ${y}</label>`).join('');
+  $('yrbtn').onclick=(e)=>{ e.stopPropagation(); pop.hidden=!pop.hidden; };
+  document.addEventListener('click', e=>{ if(!pop.hidden && !pop.contains(e.target) && e.target.id!=='yrbtn') pop.hidden=true; });
+  $('yrall').onchange=(e)=>{ selYears.clear(); if(e.target.checked) years.forEach(y=>selYears.add(y));
+    pop.querySelectorAll('.yc').forEach(c=>c.checked=e.target.checked); renderRank(); };
+  pop.querySelectorAll('.yc').forEach(c=> c.onchange=()=>{ c.checked?selYears.add(c.value):selYears.delete(c.value);
+    $('yrall').checked = selYears.size===years.length; renderRank(); });
+  renderRank();
 
   // ---- Tab2 多球员图 ----
   const mChart = makeChart({ svg:$('m-svg'), wrap:$('m-wrap'), tip:$('m-tip'), endLabels:true, xfmt:d=>d.slice(5),
