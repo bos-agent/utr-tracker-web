@@ -230,6 +230,7 @@ const $ = id => document.getElementById(id);
 const lastVal = d => { if(!d) return null; for(let i=d.length-1;i>=0;i--) if(d[i]!=null) return d[i]; return null; };
 const UTR_URL = id => `https://app.utrsports.net/profiles/${id}`;
 const WTN_URL = id => `https://worldtennisnumber.com/eng/player-profile?id=${id}&section=overview`;
+const OTA_URL = id => `https://ota.tournamentsoftware.com/player-profile/${id}`;
 
 async function decryptPayload(blob, passcode){
   const raw = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
@@ -353,78 +354,78 @@ function setupMulti({ pfx, P, labels, field, xfmt, inverted }){
 
 // 排名表(可点表头排序 + 年份筛选 + profile 链接)
 function setupRank(P){
-  const COLS = [  // dir1 = 首次点击方向(越好在前): UTR 高好->-1;WTN/排名 低好->+1
+  const COLS = [  // dir1 = 首次点击方向(越好在前): UTR 高好->-1;WTN/排名 低好->+1;出生年放最后
     {k:"name", label:"球员", get:p=>p.name, kind:"str", dir1:1},
     {k:"utrS", label:"单打 UTR", get:p=>lastVal(p.data), kind:"num", dir1:-1},
     {k:"utrD", label:"双打 UTR", get:p=>p.doubles, kind:"num", dir1:-1},
     {k:"wj",   label:"World Junior", get:p=>p.wjRank, kind:"num", dir1:1},
-    {k:"year", label:"出生年", get:p=>p.birthYear?Number(p.birthYear):null, kind:"num", yr:true, dir1:-1},
     {k:"wtnS", label:"WTN 单", get:p=>p.wtnS, kind:"num", dir1:1},
     {k:"wtnD", label:"WTN 双", get:p=>p.wtnD, kind:"num", dir1:1},
+    {k:"year", label:"出生年", get:p=>p.birthYear?Number(p.birthYear):null, kind:"num", dir1:-1, yr:true},
   ];
   let sortK="utrS", sortDir=-1;
   const years=[...new Set(P.map(p=>p.birthYear||"未知"))].sort((a,b)=> a==="未知"?1:b==="未知"?-1:Number(b)-Number(a));
   const selYears=new Set(years);
-  // 表头
+  const fmt=v=> v==null?'–':(typeof v==="number"?v.toFixed(2):v);
+
+  // 表头(只建一次;年份 popover 常驻,不随排序重建)
   const hd=$('rankhead');
   hd.innerHTML=`<th class="num">#</th>`+COLS.map(c=>{
     const cls=(c.kind==="num"?"utr ":"")+"sortable"+(c.yr?" yrhead":"");
-    let extra=c.yr?` <button class="yrbtn" id="yrbtn" type="button">筛选 ▾</button><div class="yrpop" id="yrpop" hidden></div>`:"";
-    return `<th class="${cls}" data-k="${c.k}">${c.label}${extra}</th>`;
+    const extra=c.yr?`<button class="yrbtn" id="yrbtn" type="button">▾</button><div class="yrpop" id="yrpop" hidden></div>`:"";
+    return `<th class="${cls}" data-k="${c.k}"><span class="lbl">${c.label}</span><span class="arr"></span>${extra}</th>`;
   }).join('');
-  function render(){
+
+  hd.querySelectorAll('th[data-k]').forEach(th=> th.addEventListener('click', e=>{
+    if(e.target.closest('.yrbtn') || e.target.closest('.yrpop')) return;  // 筛选 UI 不触发排序
+    const k=th.dataset.k, c=COLS.find(x=>x.k===k);
+    if(sortK===k) sortDir=-sortDir; else { sortK=k; sortDir=c.dir1; }
+    updateArrows(); renderBody();
+  }));
+
+  // 年份 popover:一次构建 + 绑定
+  const pop=$('yrpop'), ybtn=$('yrbtn');
+  pop.addEventListener('click', e=>e.stopPropagation());
+  const syncBtn=()=> ybtn.classList.toggle('on', selYears.size!==years.length);
+  pop.innerHTML=`<label><input type="checkbox" id="yrall" checked> 全部</label><div class="sep"></div>`+
+    years.map(y=>`<label><input type="checkbox" class="yc" value="${y}" checked> ${y}</label>`).join('');
+  ybtn.addEventListener('click', e=>{ e.stopPropagation(); pop.hidden=!pop.hidden; });
+  document.addEventListener('click', e=>{ if(!pop.hidden && !pop.contains(e.target) && e.target!==ybtn) pop.hidden=true; });
+  $('yrall').onchange=(e)=>{ selYears.clear(); if(e.target.checked) years.forEach(y=>selYears.add(y));
+    pop.querySelectorAll('.yc').forEach(c=>c.checked=e.target.checked); syncBtn(); renderBody(); };
+  pop.querySelectorAll('.yc').forEach(c=> c.onchange=()=>{ c.checked?selYears.add(c.value):selYears.delete(c.value);
+    $('yrall').checked=selYears.size===years.length; syncBtn(); renderBody(); });
+
+  function updateArrows(){ hd.querySelectorAll('th[data-k]').forEach(th=>{ const on=th.dataset.k===sortK;
+    th.classList.toggle('sorted',on); th.querySelector('.arr').textContent = on?(sortDir>0?' ↑':' ↓'):''; }); }
+  function renderBody(){
     const col=COLS.find(c=>c.k===sortK);
-    let rows=P.filter(p=> selYears.has(p.birthYear||"未知"));
+    const rows=P.filter(p=> selYears.has(p.birthYear||"未知"));
     rows.sort((a,b)=>{ const va=col.get(a), vb=col.get(b);
       if(col.kind==="str") return (""+va).localeCompare(""+vb)*sortDir;
       if(va==null) return 1; if(vb==null) return -1; return (va-vb)*sortDir; });
     $('ranktbody').innerHTML=rows.map((p,i)=>{
       const links=`<a class="plink" href="${UTR_URL(p.id)}" target="_blank" rel="noopener">UTR↗</a>`+
-        (p.wtnId?`<a class="plink" href="${WTN_URL(p.wtnId)}" target="_blank" rel="noopener">WTN↗</a>`:"");
-      const fmt=(v,d=2)=> v==null?'–':(typeof v==="number"?v.toFixed(d):v);
+        (p.wtnId?`<a class="plink" href="${WTN_URL(p.wtnId)}" target="_blank" rel="noopener">WTN↗</a>`:"")+
+        (p.otaId?`<a class="plink" href="${OTA_URL(p.otaId)}" target="_blank" rel="noopener">TC↗</a>`:"");
       return `<tr><td class="rk num">${i+1}</td>`+
         `<td class="nm"><span class="swatch" style="background:${p.color}"></span>${p.name}${links}</td>`+
         `<td class="utr">${fmt(lastVal(p.data))}</td>`+
         `<td class="utr">${fmt(p.doubles)}</td>`+
         `<td class="utr">${p.wjRank==null?'–':p.wjRank.toLocaleString()}</td>`+
-        `<td class="utr">${p.birthYear||'–'}</td>`+
         `<td class="utr">${fmt(p.wtnS)}</td>`+
-        `<td class="utr">${fmt(p.wtnD)}</td></tr>`;
+        `<td class="utr">${fmt(p.wtnD)}</td>`+
+        `<td class="utr">${p.birthYear||'–'}</td></tr>`;
     }).join('');
     $('rank-sub').textContent = (rows.length===P.length?`${P.length} 名球员`:`${rows.length} / ${P.length} 名球员`);
-    hd.querySelectorAll('th[data-k]').forEach(th=>{ const on=th.dataset.k===sortK;
-      th.classList.toggle('sorted',on);
-      th.dataset.base = th.dataset.base || th.textContent.replace(/[ ↑↓]+$/,'');
-    });
-    // 箭头(只加在排序列的标签上,避免影响筛选按钮)
-    hd.querySelectorAll('th[data-k]').forEach(th=>{
-      const c=COLS.find(x=>x.k===th.dataset.k); const on=th.dataset.k===sortK;
-      const arrow=on?(sortDir>0?" ↑":" ↓"):"";
-      const yrExtra = c.yr ? ` <button class="yrbtn${selYears.size!==years.length?' on':''}" id="yrbtn" type="button">筛选 ▾</button><div class="yrpop" id="yrpop" hidden></div>` : "";
-      th.innerHTML = c.label+arrow+yrExtra;
-    });
-    wireYr();
   }
-  hd.addEventListener('click', e=>{ const th=e.target.closest('th[data-k]'); if(!th) return;
-    if(e.target.classList.contains('yrbtn')) return;  // 点筛选按钮不排序
-    const k=th.dataset.k; const c=COLS.find(x=>x.k===k);
-    if(sortK===k) sortDir=-sortDir; else { sortK=k; sortDir = c.dir1; }
-    render();
-  });
-  function wireYr(){ const btn=$('yrbtn'), pop=$('yrpop'); if(!btn||!pop) return;
-    pop.innerHTML=`<label><input type="checkbox" id="yrall" ${selYears.size===years.length?'checked':''}> 全部</label><div class="sep"></div>`+
-      years.map(y=>`<label><input type="checkbox" class="yc" value="${y}" ${selYears.has(y)?'checked':''}> ${y}</label>`).join('');
-    btn.onclick=(e)=>{ e.stopPropagation(); pop.hidden=!pop.hidden; };
-    $('yrall').onchange=(e)=>{ selYears.clear(); if(e.target.checked) years.forEach(y=>selYears.add(y));
-      pop.querySelectorAll('.yc').forEach(c=>c.checked=e.target.checked); render(); pop.hidden=false; };
-    pop.querySelectorAll('.yc').forEach(c=> c.onchange=()=>{ c.checked?selYears.add(c.value):selYears.delete(c.value);
-      render(); pop.hidden=false; }); }
-  document.addEventListener('click', e=>{ const pop=$('yrpop'); if(pop && !pop.hidden && !pop.contains(e.target) && e.target.id!=='yrbtn') pop.hidden=true; });
-  render();
+  updateArrows(); renderBody();
 }
 
 function boot(payload){
-  $('gen').textContent = "更新于 "+(payload.generatedAt||"");
+  const utrRD = (payload.multi.labels||[]).at(-1) || "–";
+  const wtnRD = (payload.wtnLabels||[]).at(-1) || "–";
+  $('gen').textContent = `UTR ${utrRD} · WTN ${wtnRD} · 更新于 ${payload.generatedAt||""}`;
   const P = payload.multi.players.map((p,i)=>({ ...p, color: PALETTE[i % PALETTE.length] }));
 
   setupRank(P);
