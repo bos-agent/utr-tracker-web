@@ -36,11 +36,11 @@
   .gatecard button:disabled { opacity: .6; cursor: default; }
   .gerr { color: #e34948; font-size: 12.5px; }
 
-  .topbar { display: flex; align-items: center; gap: 14px; padding: 0 16px 0 20px; height: 52px; flex: none;
+  .topbar { display: flex; align-items: center; gap: 12px; padding: 0 16px 0 20px; height: 52px; flex: none;
     background: var(--surface); border-bottom: 1px solid var(--border); }
   .brand { font-weight: 600; letter-spacing: .2px; }
   .tabs { display: flex; gap: 4px; }
-  .tab { font: inherit; font-size: 13px; padding: 7px 13px; border: none; background: none; color: var(--text-3);
+  .tab { font: inherit; font-size: 13px; padding: 7px 12px; border: none; background: none; color: var(--text-3);
     cursor: pointer; border-radius: 7px; white-space: nowrap; }
   .tab.active { color: var(--text); background: var(--bg); font-weight: 600; }
   .tab:hover:not(.active) { color: var(--text-2); }
@@ -52,7 +52,7 @@
 
   .views { flex: 1; min-height: 0; }
   .view { height: 100%; }
-  .view[data-view="multi"] { display: flex; }
+  .view[data-view="multi"], .view[data-view="wtn"] { display: flex; }
   .view[data-view="rank"], .view[data-view="me"] { display: flex; flex-direction: column; padding: 20px 24px; }
 
   .sidebar { width: 250px; flex: none; background: var(--surface); border-right: 1px solid var(--border);
@@ -97,16 +97,22 @@
   svg { display: block; width: 100%; height: 100%; }
   .empty { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: var(--text-3); }
 
-  /* 排名表 */
   .tablecard { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: auto; }
   table.rank { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   table.rank th, table.rank td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  table.rank th { position: sticky; top: 0; background: var(--surface); color: var(--text-3); font-weight: 600; font-size: 12px; z-index: 1; }
+  table.rank th { position: sticky; top: 0; background: var(--surface); color: var(--text-3); font-weight: 600; font-size: 12px; z-index: 2; }
+  table.rank th.sortable { cursor: pointer; user-select: none; }
+  table.rank th.sortable:hover { color: var(--text); }
+  table.rank th.sorted { color: var(--text); }
   table.rank td.num, table.rank td.utr, table.rank th.num, table.rank th.utr { text-align: right; }
   table.rank td.rk { color: var(--text-3); width: 1%; }
-  table.rank td.nm { width: 100%; display: flex; align-items: center; gap: 9px; }
+  table.rank td.nm { width: 100%; }
+  table.rank td.nm .swatch { display: inline-block; vertical-align: middle; margin-right: 8px; }
   table.rank td.utr { font-weight: 600; }
   table.rank tr:hover td { background: var(--bg); }
+  .plink { font-size: 10.5px; font-weight: 400; color: var(--text-3); text-decoration: none; margin-left: 7px;
+    border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; }
+  .plink:hover { color: var(--accent); border-color: var(--accent); }
   th.yrhead { position: relative; }
   .yrbtn { margin-left: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--bg);
     color: var(--text-2); border-radius: 5px; font-size: 10px; padding: 1px 6px; font-weight: 400; }
@@ -128,10 +134,11 @@
   .tip-r .tv { color: var(--text-2); font-variant-numeric: tabular-nums; }
 
   @media (max-width: 760px) {
-    body[data-tab="multi"] .menu { display: block; }
-    .view[data-view="multi"] .sidebar { position: fixed; top: 52px; left: 0; bottom: 0; width: min(280px, 82vw); z-index: 40;
-      transform: translateX(-100%); transition: transform .22s ease; box-shadow: 2px 0 18px rgba(0,0,0,.18); }
-    body.nav-open .view[data-view="multi"] .sidebar { transform: none; }
+    body[data-tab="multi"] .menu, body[data-tab="wtn"] .menu { display: block; }
+    .view[data-view="multi"] .sidebar, .view[data-view="wtn"] .sidebar { position: fixed; top: 52px; left: 0; bottom: 0;
+      width: min(280px, 82vw); z-index: 40; transform: translateX(-100%); transition: transform .22s ease;
+      box-shadow: 2px 0 18px rgba(0,0,0,.18); }
+    body.nav-open .view:not([hidden]) .sidebar { transform: none; }
     .scrim { display: block; position: fixed; inset: 52px 0 0 0; background: rgba(0,0,0,.35);
       z-index: 39; opacity: 0; pointer-events: none; transition: opacity .22s; }
     body.nav-open .scrim { opacity: 1; pointer-events: auto; }
@@ -155,7 +162,8 @@
   <div class="brand">UTR Tracker</div>
   <nav class="tabs">
     <button class="tab active" data-tab="rank">排名</button>
-    <button class="tab" data-tab="multi">多球员</button>
+    <button class="tab" data-tab="multi">UTR 走势</button>
+    <button class="tab" data-tab="wtn">WTN 走势</button>
     <button class="tab" data-tab="me">我的走势</button>
   </nav>
   <span class="gen" id="gen"></span>
@@ -166,44 +174,50 @@
 <div class="views" id="views" hidden>
   <!-- Tab1 排名 -->
   <section class="view" data-view="rank">
-    <div class="head"><div class="t">按 UTR 排名（单打）</div><div class="sub" id="rank-sub"></div></div>
-    <div class="tablecard"><table class="rank"><thead>
-      <tr><th class="num">#</th><th>球员</th><th class="utr">单打 UTR</th><th class="utr">双打 UTR</th><th class="utr">World Junior</th><th class="utr yrhead">出生年 <button class="yrbtn" id="yrbtn" type="button">筛选 ▾</button><div class="yrpop" id="yrpop" hidden></div></th></tr>
-    </thead><tbody id="ranktbody"></tbody></table></div>
+    <div class="head"><div class="t">排名</div><div class="sub" id="rank-sub"></div></div>
+    <div class="tablecard"><table class="rank"><thead><tr id="rankhead"></tr></thead><tbody id="ranktbody"></tbody></table></div>
   </section>
 
-  <!-- Tab2 多球员 -->
+  <!-- Tab2 UTR 多球员 -->
   <section class="view" data-view="multi" hidden>
     <aside class="sidebar">
-      <div class="cap" id="roster-note"></div>
-      <input class="filter" id="filter" type="search" placeholder="搜索球员…" autocomplete="off">
-      <div class="sortbar"><span>排序</span>
-        <button class="sort" data-key="utr">UTR</button>
-        <button class="sort" data-key="name">名字</button>
-      </div>
-      <div class="toolbar">
-        <button id="all">全选</button><button id="none">全不选</button><button id="reset">默认</button>
-      </div>
-      <div class="list" id="list"></div>
+      <div class="cap" id="m-note"></div>
+      <input class="filter" id="m-filter" type="search" placeholder="搜索球员…" autocomplete="off">
+      <div class="sortbar" id="m-sortbar"><span>排序</span>
+        <button class="sort" data-key="val">UTR</button><button class="sort" data-key="name">名字</button></div>
+      <div class="toolbar"><button id="m-all">全选</button><button id="m-none">全不选</button><button id="m-reset">默认</button></div>
+      <div class="list" id="m-list"></div>
     </aside>
     <main class="main">
       <div class="head"><div class="t">单打 UTR 走势</div><div class="sub" id="m-range"></div></div>
-      <div class="card"><div class="chart-wrap" id="m-wrap">
-        <svg id="m-svg" preserveAspectRatio="none"></svg>
-        <div class="empty" id="m-empty">没有勾选球员</div>
-        <div class="tip" id="m-tip" hidden></div>
-      </div></div>
+      <div class="card"><div class="chart-wrap" id="m-wrap"><svg id="m-svg" preserveAspectRatio="none"></svg>
+        <div class="empty" id="m-empty">没有勾选球员</div><div class="tip" id="m-tip" hidden></div></div></div>
     </main>
   </section>
 
-  <!-- Tab3 我的走势 -->
+  <!-- Tab3 WTN 多球员 -->
+  <section class="view" data-view="wtn" hidden>
+    <aside class="sidebar">
+      <div class="cap" id="w-note"></div>
+      <input class="filter" id="w-filter" type="search" placeholder="搜索球员…" autocomplete="off">
+      <div class="sortbar" id="w-sortbar"><span>排序</span>
+        <button class="sort" data-key="val">WTN</button><button class="sort" data-key="name">名字</button></div>
+      <div class="toolbar"><button id="w-all">全选</button><button id="w-none">全不选</button><button id="w-reset">默认</button></div>
+      <div class="list" id="w-list"></div>
+    </aside>
+    <main class="main">
+      <div class="head"><div class="t">单打 WTN 走势 <span style="color:var(--text-3);font-weight:400;font-size:12px">（数字越小越强，Y 轴倒置）</span></div><div class="sub" id="w-range"></div></div>
+      <div class="card"><div class="chart-wrap" id="w-wrap"><svg id="w-svg" preserveAspectRatio="none"></svg>
+        <div class="empty" id="w-empty">没有勾选球员</div><div class="tip" id="w-tip" hidden></div></div></div>
+    </main>
+  </section>
+
+  <!-- Tab4 我的走势 -->
   <section class="view" data-view="me" hidden>
     <div class="head"><div class="t">我的单打 UTR 历史</div><div class="sub" id="me-range"></div></div>
     <div class="mestat"><b id="me-cur">–</b><small id="me-who">当前</small></div>
-    <div class="card"><div class="chart-wrap" id="me-wrap">
-      <svg id="me-svg" preserveAspectRatio="none"></svg>
-      <div class="tip" id="me-tip" hidden></div>
-    </div></div>
+    <div class="card"><div class="chart-wrap" id="me-wrap"><svg id="me-svg" preserveAspectRatio="none"></svg>
+      <div class="tip" id="me-tip" hidden></div></div></div>
   </section>
 </div>
 
@@ -213,7 +227,9 @@ const PALETTE = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#2ca02c","#7
 const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
 const short = n => n.length>16 ? n.slice(0,15)+"…" : n;
 const $ = id => document.getElementById(id);
-const lastVal = d => { for(let i=d.length-1;i>=0;i--) if(d[i]!=null) return d[i]; return null; };
+const lastVal = d => { if(!d) return null; for(let i=d.length-1;i>=0;i--) if(d[i]!=null) return d[i]; return null; };
+const UTR_URL = id => `https://app.utrsports.net/profiles/${id}`;
+const WTN_URL = id => `https://worldtennisnumber.com/eng/player-profile?id=${id}&section=overview`;
 
 async function decryptPayload(blob, passcode){
   const raw = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
@@ -225,7 +241,8 @@ async function decryptPayload(blob, passcode){
   return JSON.parse(new TextDecoder().decode(pt));
 }
 
-function makeChart({ svg, wrap, tip, labels, series, endLabels=false, xfmt }){
+// 折线图。inverted=true 时数值小的在上(WTN)。
+function makeChart({ svg, wrap, tip, labels, series, endLabels=false, xfmt, inverted=false }){
   const vis = series.map(()=>true);
   const n = labels.length; let S=null;
   const lastOf = d => { for(let i=d.length-1;i>=0;i--) if(d[i]!=null) return {i, v:d[i]}; return null; };
@@ -237,7 +254,8 @@ function makeChart({ svg, wrap, tip, labels, series, endLabels=false, xfmt }){
     lo=Math.floor(lo*2)/2-0.25; hi=Math.ceil(hi*2)/2+0.25;
     const W=Math.max(320,wrap.clientWidth||900), H=Math.max(300,wrap.clientHeight||420);
     const L=44, R=W-(endLabels?150:16), T=14, B=H-30, pw=R-L, ph=B-T;
-    const x=i=> L+(n<=1?0:i/(n-1))*pw, y=v=> T+(1-(v-lo)/(hi-lo))*ph;
+    const x=i=> L+(n<=1?0:i/(n-1))*pw;
+    const y=v=> inverted ? T+((v-lo)/(hi-lo))*ph : T+(1-(v-lo)/(hi-lo))*ph;
     let s='';
     for(let k=0;k<5;k++){ const v=lo+(hi-lo)*k/4, yy=y(v);
       s+=`<line x1="${L}" y1="${yy.toFixed(1)}" x2="${R}" y2="${yy.toFixed(1)}" stroke="${css('--grid')}" stroke-width="1"/>`;
@@ -271,7 +289,7 @@ function makeChart({ svg, wrap, tip, labels, series, endLabels=false, xfmt }){
     if(!on.length){ g.innerHTML=''; tip.hidden=true; return; }
     const xx=S.x(i);
     let h=`<line x1="${xx.toFixed(1)}" y1="${S.T}" x2="${xx.toFixed(1)}" y2="${S.B}" stroke="${css('--grid-strong')}" stroke-width="1"/>`;
-    const items=on.map(idx=>({idx,v:series[idx].data[i]})).sort((a,b)=>b.v-a.v);
+    const items=on.map(idx=>({idx,v:series[idx].data[i]})).sort((a,b)=> inverted ? a.v-b.v : b.v-a.v);
     items.forEach(it=> h+=`<circle cx="${xx.toFixed(1)}" cy="${S.y(it.v).toFixed(1)}" r="3.5" fill="${series[it.idx].color}" stroke="${css('--surface')}" stroke-width="1.5"/>`);
     g.innerHTML=h;
     tip.innerHTML=`<div class="tip-d">${labels[i]}</div>`+items.map(it=>
@@ -290,123 +308,150 @@ function makeChart({ svg, wrap, tip, labels, series, endLabels=false, xfmt }){
   return { render, setVisible:(i,on)=>{vis[i]=on;render();}, setAll:arr=>{arr.forEach((v,i)=>vis[i]=v);render();} };
 }
 
+// 多球员面板(侧栏+图)。UTR/WTN 复用;pfx='m'|'w',field='data'|'wtnData',inverted 控制 Y 轴与排序方向
+function setupMulti({ pfx, P, labels, field, xfmt, inverted }){
+  const chart = makeChart({ svg:$(pfx+'-svg'), wrap:$(pfx+'-wrap'), tip:$(pfx+'-tip'), labels, endLabels:true,
+    xfmt, inverted, series:P.map(p=>({name:p.name, color:p.color, data:p[field]})) });
+  $(pfx+'-range').textContent = labels.length ? labels[0]+" → "+labels.at(-1) : "暂无数据";
+  $(pfx+'-note').textContent = P.length+" 名球员";
+  const val = p => lastVal(p[field]);
+  const checked = P.map(p=>!!p.default);
+  P.forEach((_,i)=> chart.setVisible(i, checked[i]));
+  let sortKey="roster", sortDir=1;
+  const order = () => { const idx=P.map((_,i)=>i);
+    if(sortKey==="name") idx.sort((a,b)=> P[a].name.localeCompare(P[b].name)*sortDir);
+    else if(sortKey==="val") idx.sort((a,b)=>{ const va=val(P[a]), vb=val(P[b]);
+      if(va==null) return 1; if(vb==null) return -1; return (va-vb)*sortDir; });
+    return idx; };
+  const list=$(pfx+'-list'), filter=$(pfx+'-filter');
+  function rowEl(i){ const p=P[i], v=val(p);
+    const row=document.createElement('label'); row.className='row'; row.dataset.on=checked[i]?'1':'0';
+    row.innerHTML=`<input type="checkbox" ${checked[i]?'checked':''}><span class="swatch" style="background:${p.color}"></span>`+
+      `<span class="name">${p.name}</span><span class="val">${v==null?'–':v.toFixed(2)}</span>`;
+    row.querySelector('input').addEventListener('change',e=>{ checked[i]=e.target.checked; chart.setVisible(i,checked[i]); renderList(); });
+    return row; }
+  function section(title,total,idxs){ const box=document.createElement('div');
+    const h=document.createElement('div'); h.className='grp-h'; h.textContent=`${title} ${total}`; box.appendChild(h);
+    if(!idxs.length){ const e=document.createElement('div'); e.className='grp-empty'; e.textContent='—'; box.appendChild(e); }
+    else idxs.forEach(i=>box.appendChild(rowEl(i))); return box; }
+  function renderList(){ const q=filter.value.trim().toLowerCase(), ord=order();
+    const on=ord.filter(i=>checked[i]), off=ord.filter(i=>!checked[i]); const m=i=>!q||P[i].name.toLowerCase().includes(q);
+    list.innerHTML=''; list.appendChild(section('已显示',on.length,on.filter(m))); list.appendChild(section('未显示',off.length,off.filter(m))); }
+  filter.addEventListener('input', renderList);
+  function setAll(fn){ P.forEach((_,i)=>checked[i]=fn(i)); chart.setAll(checked.slice()); renderList(); }
+  $(pfx+'-all').onclick=()=>setAll(()=>true); $(pfx+'-none').onclick=()=>setAll(()=>false); $(pfx+'-reset').onclick=()=>setAll(i=>!!P[i].default);
+  const metricLabel = pfx==='w' ? 'WTN' : 'UTR';
+  document.querySelectorAll('#'+pfx+'-sortbar .sort').forEach(btn=> btn.onclick=()=>{
+    const k=btn.dataset.key;
+    if(sortKey===k) sortDir=-sortDir; else { sortKey=k; sortDir = k==="val" ? (inverted?1:-1) : 1; }
+    document.querySelectorAll('#'+pfx+'-sortbar .sort').forEach(b=>{ const on=b.dataset.key===sortKey;
+      b.classList.toggle('active',on); b.textContent=(b.dataset.key==="val"?metricLabel:"名字")+(on?(sortDir>0?" ↑":" ↓"):""); });
+    renderList(); });
+  renderList();
+  return chart;
+}
+
+// 排名表(可点表头排序 + 年份筛选 + profile 链接)
+function setupRank(P){
+  const COLS = [  // dir1 = 首次点击方向(越好在前): UTR 高好->-1;WTN/排名 低好->+1
+    {k:"name", label:"球员", get:p=>p.name, kind:"str", dir1:1},
+    {k:"utrS", label:"单打 UTR", get:p=>lastVal(p.data), kind:"num", dir1:-1},
+    {k:"utrD", label:"双打 UTR", get:p=>p.doubles, kind:"num", dir1:-1},
+    {k:"wj",   label:"World Junior", get:p=>p.wjRank, kind:"num", dir1:1},
+    {k:"year", label:"出生年", get:p=>p.birthYear?Number(p.birthYear):null, kind:"num", yr:true, dir1:-1},
+    {k:"wtnS", label:"WTN 单", get:p=>p.wtnS, kind:"num", dir1:1},
+    {k:"wtnD", label:"WTN 双", get:p=>p.wtnD, kind:"num", dir1:1},
+  ];
+  let sortK="utrS", sortDir=-1;
+  const years=[...new Set(P.map(p=>p.birthYear||"未知"))].sort((a,b)=> a==="未知"?1:b==="未知"?-1:Number(b)-Number(a));
+  const selYears=new Set(years);
+  // 表头
+  const hd=$('rankhead');
+  hd.innerHTML=`<th class="num">#</th>`+COLS.map(c=>{
+    const cls=(c.kind==="num"?"utr ":"")+"sortable"+(c.yr?" yrhead":"");
+    let extra=c.yr?` <button class="yrbtn" id="yrbtn" type="button">筛选 ▾</button><div class="yrpop" id="yrpop" hidden></div>`:"";
+    return `<th class="${cls}" data-k="${c.k}">${c.label}${extra}</th>`;
+  }).join('');
+  function render(){
+    const col=COLS.find(c=>c.k===sortK);
+    let rows=P.filter(p=> selYears.has(p.birthYear||"未知"));
+    rows.sort((a,b)=>{ const va=col.get(a), vb=col.get(b);
+      if(col.kind==="str") return (""+va).localeCompare(""+vb)*sortDir;
+      if(va==null) return 1; if(vb==null) return -1; return (va-vb)*sortDir; });
+    $('ranktbody').innerHTML=rows.map((p,i)=>{
+      const links=`<a class="plink" href="${UTR_URL(p.id)}" target="_blank" rel="noopener">UTR↗</a>`+
+        (p.wtnId?`<a class="plink" href="${WTN_URL(p.wtnId)}" target="_blank" rel="noopener">WTN↗</a>`:"");
+      const fmt=(v,d=2)=> v==null?'–':(typeof v==="number"?v.toFixed(d):v);
+      return `<tr><td class="rk num">${i+1}</td>`+
+        `<td class="nm"><span class="swatch" style="background:${p.color}"></span>${p.name}${links}</td>`+
+        `<td class="utr">${fmt(lastVal(p.data))}</td>`+
+        `<td class="utr">${fmt(p.doubles)}</td>`+
+        `<td class="utr">${p.wjRank==null?'–':p.wjRank.toLocaleString()}</td>`+
+        `<td class="utr">${p.birthYear||'–'}</td>`+
+        `<td class="utr">${fmt(p.wtnS)}</td>`+
+        `<td class="utr">${fmt(p.wtnD)}</td></tr>`;
+    }).join('');
+    $('rank-sub').textContent = (rows.length===P.length?`${P.length} 名球员`:`${rows.length} / ${P.length} 名球员`);
+    hd.querySelectorAll('th[data-k]').forEach(th=>{ const on=th.dataset.k===sortK;
+      th.classList.toggle('sorted',on);
+      th.dataset.base = th.dataset.base || th.textContent.replace(/[ ↑↓]+$/,'');
+    });
+    // 箭头(只加在排序列的标签上,避免影响筛选按钮)
+    hd.querySelectorAll('th[data-k]').forEach(th=>{
+      const c=COLS.find(x=>x.k===th.dataset.k); const on=th.dataset.k===sortK;
+      const arrow=on?(sortDir>0?" ↑":" ↓"):"";
+      const yrExtra = c.yr ? ` <button class="yrbtn${selYears.size!==years.length?' on':''}" id="yrbtn" type="button">筛选 ▾</button><div class="yrpop" id="yrpop" hidden></div>` : "";
+      th.innerHTML = c.label+arrow+yrExtra;
+    });
+    wireYr();
+  }
+  hd.addEventListener('click', e=>{ const th=e.target.closest('th[data-k]'); if(!th) return;
+    if(e.target.classList.contains('yrbtn')) return;  // 点筛选按钮不排序
+    const k=th.dataset.k; const c=COLS.find(x=>x.k===k);
+    if(sortK===k) sortDir=-sortDir; else { sortK=k; sortDir = c.dir1; }
+    render();
+  });
+  function wireYr(){ const btn=$('yrbtn'), pop=$('yrpop'); if(!btn||!pop) return;
+    pop.innerHTML=`<label><input type="checkbox" id="yrall" ${selYears.size===years.length?'checked':''}> 全部</label><div class="sep"></div>`+
+      years.map(y=>`<label><input type="checkbox" class="yc" value="${y}" ${selYears.has(y)?'checked':''}> ${y}</label>`).join('');
+    btn.onclick=(e)=>{ e.stopPropagation(); pop.hidden=!pop.hidden; };
+    $('yrall').onchange=(e)=>{ selYears.clear(); if(e.target.checked) years.forEach(y=>selYears.add(y));
+      pop.querySelectorAll('.yc').forEach(c=>c.checked=e.target.checked); render(); pop.hidden=false; };
+    pop.querySelectorAll('.yc').forEach(c=> c.onchange=()=>{ c.checked?selYears.add(c.value):selYears.delete(c.value);
+      render(); pop.hidden=false; }); }
+  document.addEventListener('click', e=>{ const pop=$('yrpop'); if(pop && !pop.hidden && !pop.contains(e.target) && e.target.id!=='yrbtn') pop.hidden=true; });
+  render();
+}
+
 function boot(payload){
   $('gen').textContent = "更新于 "+(payload.generatedAt||"");
   const P = payload.multi.players.map((p,i)=>({ ...p, color: PALETTE[i % PALETTE.length] }));
-  const labels = payload.multi.labels;
 
-  // ---- Tab1 排名表(按最新单打 UTR 降序) ----
-  const ranked = P.map(p=>({p, v:lastVal(p.data)}))
-                  .sort((a,b)=> (b.v==null?-Infinity:b.v) - (a.v==null?-Infinity:a.v));
-  const years = [...new Set(ranked.map(r=> r.p.birthYear || "未知"))]
-                  .sort((a,b)=> a==="未知"?1 : b==="未知"?-1 : Number(b)-Number(a));  // 新→旧,未知置底
-  const selYears = new Set(years);
-  function renderRank(){
-    const rows = ranked.filter(r=> selYears.has(r.p.birthYear || "未知"));
-    $('ranktbody').innerHTML = rows.map((r,i)=>
-      `<tr><td class="rk num">${i+1}</td>`+
-      `<td class="nm"><span class="swatch" style="background:${r.p.color}"></span>${r.p.name}</td>`+
-      `<td class="utr">${r.v==null?'–':r.v.toFixed(2)}</td>`+
-      `<td class="utr">${r.p.doubles==null?'–':r.p.doubles.toFixed(2)}</td>`+
-      `<td class="utr">${r.p.wjRank==null?'–':r.p.wjRank.toLocaleString()}</td>`+
-      `<td class="utr">${r.p.birthYear||'–'}</td></tr>`).join('');
-    $('rank-sub').textContent = rows.length===ranked.length ? `${ranked.length} 名球员` : `${rows.length} / ${ranked.length} 名球员`;
-    $('yrbtn').classList.toggle('on', selYears.size!==years.length);
-  }
-  const pop=$('yrpop');
-  pop.innerHTML = `<label><input type="checkbox" id="yrall" checked> 全部</label><div class="sep"></div>`+
-    years.map(y=>`<label><input type="checkbox" class="yc" value="${y}" checked> ${y}</label>`).join('');
-  $('yrbtn').onclick=(e)=>{ e.stopPropagation(); pop.hidden=!pop.hidden; };
-  document.addEventListener('click', e=>{ if(!pop.hidden && !pop.contains(e.target) && e.target.id!=='yrbtn') pop.hidden=true; });
-  $('yrall').onchange=(e)=>{ selYears.clear(); if(e.target.checked) years.forEach(y=>selYears.add(y));
-    pop.querySelectorAll('.yc').forEach(c=>c.checked=e.target.checked); renderRank(); };
-  pop.querySelectorAll('.yc').forEach(c=> c.onchange=()=>{ c.checked?selYears.add(c.value):selYears.delete(c.value);
-    $('yrall').checked = selYears.size===years.length; renderRank(); });
-  renderRank();
+  setupRank(P);
+  const mChart = setupMulti({ pfx:'m', P, labels:payload.multi.labels, field:'data', xfmt:d=>d.slice(5), inverted:false });
+  const wChart = setupMulti({ pfx:'w', P, labels:payload.wtnLabels||[], field:'wtnData', xfmt:d=>d.slice(5), inverted:true });
 
-  // ---- Tab2 多球员图 ----
-  const mChart = makeChart({ svg:$('m-svg'), wrap:$('m-wrap'), tip:$('m-tip'), endLabels:true, xfmt:d=>d.slice(5),
-    labels, series: P.map(p=>({name:p.name, color:p.color, data:p.data})) });
-  $('m-range').textContent = labels.length ? labels[0]+" → "+labels.at(-1) : "暂无数据";
-  $('roster-note').textContent = P.length+" 名球员";
-  const checked = P.map(p=>!!p.default);
-  P.forEach((_,i)=> mChart.setVisible(i, checked[i]));
-
-  let sortKey="roster", sortDir=1;
-  const order = () => {
-    const idx = P.map((_,i)=>i);
-    if(sortKey==="name") idx.sort((a,b)=> P[a].name.localeCompare(P[b].name)*sortDir);
-    else if(sortKey==="utr") idx.sort((a,b)=>{ const va=lastVal(P[a].data), vb=lastVal(P[b].data);
-      if(va==null) return 1; if(vb==null) return -1; return (va-vb)*sortDir; });
-    return idx;
-  };
-  const list=$('list'), filter=$('filter');
-  function rowEl(i){
-    const p=P[i], v=lastVal(p.data);
-    const row=document.createElement('label');
-    row.className='row'; row.dataset.on=checked[i]?'1':'0';
-    row.innerHTML=`<input type="checkbox" ${checked[i]?'checked':''}>
-      <span class="swatch" style="background:${p.color}"></span>
-      <span class="name">${p.name}</span>
-      <span class="val">${v==null?'–':v.toFixed(2)}</span>`;
-    row.querySelector('input').addEventListener('change',e=>{ checked[i]=e.target.checked;
-      mChart.setVisible(i,checked[i]); renderList(); });
-    return row;
-  }
-  function section(title, total, idxs){
-    const box=document.createElement('div');
-    const h=document.createElement('div'); h.className='grp-h'; h.textContent=`${title} ${total}`; box.appendChild(h);
-    if(!idxs.length){ const e=document.createElement('div'); e.className='grp-empty'; e.textContent='—'; box.appendChild(e); }
-    else idxs.forEach(i=>box.appendChild(rowEl(i)));
-    return box;
-  }
-  function renderList(){
-    const q=filter.value.trim().toLowerCase(), ord=order();
-    const on=ord.filter(i=>checked[i]), off=ord.filter(i=>!checked[i]);
-    const m=i=>!q||P[i].name.toLowerCase().includes(q);
-    list.innerHTML='';
-    list.appendChild(section('已显示', on.length, on.filter(m)));
-    list.appendChild(section('未显示', off.length, off.filter(m)));
-  }
-  filter.addEventListener('input', renderList);
-  function setAll(fn){ P.forEach((_,i)=>checked[i]=fn(i)); mChart.setAll(checked.slice()); renderList(); }
-  $('all').onclick=()=>setAll(()=>true);
-  $('none').onclick=()=>setAll(()=>false);
-  $('reset').onclick=()=>setAll(i=>!!P[i].default);
-  document.querySelectorAll('.sort').forEach(btn=> btn.onclick=()=>{
-    const k=btn.dataset.key;
-    if(sortKey===k) sortDir=-sortDir; else { sortKey=k; sortDir = k==="utr"?-1:1; }
-    document.querySelectorAll('.sort').forEach(b=>{ const on=b.dataset.key===sortKey;
-      b.classList.toggle('active',on); b.textContent=(b.dataset.key==="utr"?"UTR":"名字")+(on?(sortDir>0?" ↑":" ↓"):""); });
-    renderList();
-  });
-  renderList();
-
-  // ---- Tab3 我的走势 ----
+  // 我的走势
   let meChart={render:()=>{}};
   const me = payload.owner;
   if(me && me.data && me.data.length){
     meChart = makeChart({ svg:$('me-svg'), wrap:$('me-wrap'), tip:$('me-tip'), labels:me.labels, xfmt:d=>d.slice(0,7),
       series:[{name:me.name, color:PALETTE[0], data:me.data}] });
+    meChart.render();
     $('me-range').textContent = me.labels[0]+" → "+me.labels.at(-1);
     $('me-cur').textContent = me.data.at(-1)!=null ? me.data.at(-1).toFixed(2) : "–";
     $('me-who').textContent = "当前 · "+me.name;
-  } else {
-    $('me-range').textContent = "无历史数据"; $('me-who').textContent = "";
-  }
+  } else { $('me-range').textContent="无历史数据"; $('me-who').textContent=""; }
 
-  // ---- tab 切换 ----
-  const charts={ rank:{render:()=>{}}, multi:mChart, me:meChart };
+  const charts={ rank:{render:()=>{}}, multi:mChart, wtn:wChart, me:meChart };
   document.body.dataset.tab = "rank";
   document.querySelectorAll('.tab').forEach(t=> t.onclick=()=>{
     const name=t.dataset.tab;
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
     document.querySelectorAll('.view').forEach(v=> v.hidden = v.dataset.view!==name);
-    document.body.dataset.tab = name;
-    document.body.classList.remove('nav-open');
+    document.body.dataset.tab = name; document.body.classList.remove('nav-open');
     charts[name].render();
   });
-
   $('topbar').hidden=false; $('views').hidden=false;
 }
 
@@ -417,16 +462,10 @@ async function tryUnlock(passcode, silent){
     const blob = await (await fetch('data.enc', {cache:'no-store'})).json();
     const payload = await decryptPayload(blob, passcode);
     try{ sessionStorage.setItem('utr_pass', passcode); }catch(_){}
-    boot(payload);
-    $('gate').hidden=true;
-  }catch(e){
-    if(!silent){ err.textContent="口令不对,或数据未加载"; err.hidden=false; }
-    btn.disabled=false;
-    throw e;
-  }
+    boot(payload); $('gate').hidden=true;
+  }catch(e){ if(!silent){ err.textContent="口令不对,或数据未加载"; err.hidden=false; } btn.disabled=false; throw e; }
 }
-$('gateform').addEventListener('submit', e=>{ e.preventDefault();
-  const pass=$('pass').value; if(pass) tryUnlock(pass,false).catch(()=>{}); });
+$('gateform').addEventListener('submit', e=>{ e.preventDefault(); const pass=$('pass').value; if(pass) tryUnlock(pass,false).catch(()=>{}); });
 $('menu').onclick = ()=> document.body.classList.toggle('nav-open');
 $('scrim').onclick = ()=> document.body.classList.remove('nav-open');
 (function(){ let saved=null; try{ saved=sessionStorage.getItem('utr_pass'); }catch(_){}
