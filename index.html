@@ -157,7 +157,7 @@
   <section class="view" data-view="rank">
     <div class="head"><div class="t">按 UTR 排名（单打）</div><div class="sub" id="rank-sub"></div></div>
     <div class="tablecard"><table class="rank"><thead>
-      <tr><th class="num">#</th><th>球员</th><th class="utr">单打 UTR</th></tr>
+      <tr><th class="num">#</th><th>球员</th><th class="utr">单打 UTR</th><th class="utr">双打 UTR</th><th class="utr">World Junior</th></tr>
     </thead><tbody id="ranktbody"></tbody></table></div>
   </section>
 
@@ -290,7 +290,9 @@ function boot(payload){
   $('ranktbody').innerHTML = ranked.map((r,i)=>
     `<tr><td class="rk num">${i+1}</td>`+
     `<td class="nm"><span class="swatch" style="background:${r.p.color}"></span>${r.p.name}</td>`+
-    `<td class="utr">${r.v==null?'–':r.v.toFixed(2)}</td></tr>`).join('');
+    `<td class="utr">${r.v==null?'–':r.v.toFixed(2)}</td>`+
+    `<td class="utr">${r.p.doubles==null?'–':r.p.doubles.toFixed(2)}</td>`+
+    `<td class="utr">${r.p.wjRank==null?'–':r.p.wjRank.toLocaleString()}</td></tr>`).join('');
   $('rank-sub').textContent = P.length+" 名球员";
 
   // ---- Tab2 多球员图 ----
