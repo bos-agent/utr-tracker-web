@@ -316,6 +316,9 @@ async function decryptPayload(blob, passcode){
 function makeChart({ svg, wrap, tip, labels, series, endLabels=false, xfmt, inverted=false }){
   const vis = series.map(()=>true);
   const n = labels.length; let S=null;
+  // 横轴按真实日期比例:以前周点、现在日点混在一起,按序号等距会把旧的几周压扁
+  const ts = labels.map(d=>Date.parse(d)), span = ts[n-1]-ts[0];
+  const frac = (n>1 && span>0 && ts.every(Number.isFinite)) ? i=>(ts[i]-ts[0])/span : i=>(n<=1?0:i/(n-1));
   const lastOf = d => { for(let i=d.length-1;i>=0;i--) if(d[i]!=null) return {i, v:d[i]}; return null; };
   function render(){
     const on = vis.flatMap((v,i)=>v?[i]:[]);
@@ -325,14 +328,14 @@ function makeChart({ svg, wrap, tip, labels, series, endLabels=false, xfmt, inve
     lo=Math.floor(lo*2)/2-0.25; hi=Math.ceil(hi*2)/2+0.25;
     const W=Math.max(320,wrap.clientWidth||900), H=Math.max(300,wrap.clientHeight||420);
     const L=44, R=W-(endLabels?150:16), T=14, B=H-30, pw=R-L, ph=B-T;
-    const x=i=> L+(n<=1?0:i/(n-1))*pw;
+    const x=i=> L+frac(i)*pw;
     const y=v=> inverted ? T+((v-lo)/(hi-lo))*ph : T+(1-(v-lo)/(hi-lo))*ph;
     let s='';
     for(let k=0;k<5;k++){ const v=lo+(hi-lo)*k/4, yy=y(v);
       s+=`<line x1="${L}" y1="${yy.toFixed(1)}" x2="${R}" y2="${yy.toFixed(1)}" stroke="${css('--grid')}" stroke-width="1"/>`;
       s+=`<text x="${L-8}" y="${(yy+3.5).toFixed(1)}" text-anchor="end" fill="${css('--text-3')}" font-size="11">${v.toFixed(1)}</text>`; }
-    const target=Math.max(2,Math.floor(pw/76)), step=Math.max(1,Math.ceil((n-1)/target));
-    for(let i=0;i<n;i+=step){ const xx=x(i);
+    let lastTick=-Infinity;  // 刻度按像素间距抽稀(点不等距了,不能再按序号步长)
+    for(let i=0;i<n;i++){ const xx=x(i); if(xx-lastTick<76) continue; lastTick=xx;
       s+=`<line x1="${xx.toFixed(1)}" y1="${B}" x2="${xx.toFixed(1)}" y2="${B+4}" stroke="${css('--grid-strong')}" stroke-width="1"/>`;
       s+=`<text x="${xx.toFixed(1)}" y="${B+16}" text-anchor="middle" fill="${css('--text-3')}" font-size="11">${xfmt(labels[i])}</text>`; }
     s+=`<line x1="${L}" y1="${B}" x2="${R}" y2="${B}" stroke="${css('--border')}" stroke-width="1"/>`;
@@ -373,7 +376,7 @@ function makeChart({ svg, wrap, tip, labels, series, endLabels=false, xfmt, inve
   }
   svg.addEventListener('mousemove', ev=>{ if(!S) return;
     const r=svg.getBoundingClientRect(); const mx=(ev.clientX-r.left)*(S.W/r.width);
-    let i=Math.round((mx-S.L)/S.pw*(n-1)); i=Math.max(0,Math.min(n-1,i)); hover(i,ev); });
+    let i=0; for(let k=1;k<n;k++) if(Math.abs(S.x(k)-mx)<Math.abs(S.x(i)-mx)) i=k; hover(i,ev); });
   svg.addEventListener('mouseleave', ()=>{ const g=svg.querySelector('#hover'); if(g)g.innerHTML=''; tip.hidden=true; });
   new ResizeObserver(render).observe(wrap);
   return { render, setVisible:(i,on)=>{vis[i]=on;render();}, setAll:arr=>{arr.forEach((v,i)=>vis[i]=v);render();} };
