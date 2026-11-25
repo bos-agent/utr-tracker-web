@@ -154,6 +154,11 @@
   .mo-chip em { font-style: normal; color: var(--text-3); font-weight: 400; font-size: 10.5px; margin-left: 3px; }
   .mo-arrow { color: var(--text-3); }
   .mo-none { color: var(--text-3); font-weight: 400; }
+  .warn { color: #e0a100; cursor: help; margin-left: 4px; }
+  .stalebar { background: rgba(224,161,0,.12); border: 1px solid rgba(224,161,0,.45); border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 10px; font-size: 12.5px; color: var(--text-2); }
+  .mo-warn { background: rgba(224,161,0,.12); border: 1px solid rgba(224,161,0,.45); border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 14px; font-size: 12.5px; color: var(--text-2); }
 
   .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border);
     border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.14); min-width: 140px; z-index: 5; }
@@ -205,6 +210,7 @@
   <div class="modal-card">
     <button class="modal-x" id="mo-x" type="button">✕</button>
     <div class="mo-name" id="mo-name"></div>
+    <div class="mo-warn" id="mo-warn" hidden></div>
     <div class="mo-links" id="mo-links"></div>
     <div class="mo-body" id="mo-body"></div>
   </div>
@@ -214,6 +220,7 @@
   <!-- Tab1 排名 -->
   <section class="view" data-view="rank">
     <div class="head"><div class="t">排名</div><div class="sub" id="rank-sub"></div></div>
+    <div class="stalebar" id="stalebar" hidden></div>
     <div class="yearbar" id="yearbar"></div>
     <div class="tablecard"><table class="rank"><thead><tr id="rankhead"></tr></thead><tbody id="ranktbody"></tbody></table></div>
   </section>
@@ -270,6 +277,8 @@ const $ = id => document.getElementById(id);
 const lastVal = d => { if(!d) return null; for(let i=d.length-1;i>=0;i--) if(d[i]!=null) return d[i]; return null; };
 const UTR_URL = id => `https://app.utrsports.net/profiles/${id}`;
 const WTN_URL = id => `https://worldtennisnumber.com/eng/player-profile?id=${id}&section=overview`;
+const STALE_MSG = p => `UTR id ${p.id} 疑似已失效(账号被合并/换号,自 ${p.staleSince} 起查不到),数据已停更,需要重新校准 id`;
+const warnTag = p => p.staleSince ? `<span class="warn" title="${STALE_MSG(p)}">⚠</span>` : '';
 const OTA_URL = id => `https://ota.tournamentsoftware.com/player-profile/${id}`;
 // 变化箭头:按「变强/变弱」打。UTR 越大越强;WTN/Junior 排名越小越强(方向翻转)。
 // 变强永远 ↑ 绿,变弱永远 ↓ 红。
@@ -282,6 +291,7 @@ const arrowHTML = (cur, prev, lowerBetter=false) => {
 
 function openModal(p){
   $('mo-name').textContent = p.name;
+  $('mo-warn').hidden = !p.staleSince; $('mo-warn').textContent = p.staleSince ? '⚠ '+STALE_MSG(p) : '';
   const L = [["UTR", UTR_URL(p.id)]];
   if(p.wtnId) L.push(["WTN", WTN_URL(p.wtnId)]);
   if(p.otaId) L.push(["Tennis Canada", OTA_URL(p.otaId)]);
@@ -340,7 +350,7 @@ function makeChart({ svg, wrap, tip, labels, series, endLabels=false, xfmt, inve
       s+=`<text x="${xx.toFixed(1)}" y="${B+16}" text-anchor="middle" fill="${css('--text-3')}" font-size="11">${xfmt(labels[i])}</text>`; }
     s+=`<line x1="${L}" y1="${B}" x2="${R}" y2="${B}" stroke="${css('--border')}" stroke-width="1"/>`;
     on.forEach(idx=>{ const d=series[idx].data; let pts='', pen=false;
-      for(let i=0;i<n;i++){ if(d[i]==null){ pen=false; continue; } pts+=`${pen?'L':'M'}${x(i).toFixed(1)} ${y(d[i]).toFixed(1)} `; pen=true; }
+      for(let i=0;i<n;i++){ if(d[i]==null) continue; pts+=`${pen?'L':'M'}${x(i).toFixed(1)} ${y(d[i]).toFixed(1)} `; pen=true; }
       s+=`<path d="${pts.trim()}" fill="none" stroke="${series[idx].color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`; });
     if(endLabels && on.length){
       const labs=on.map(idx=>({idx, last:lastOf(series[idx].data)})).filter(o=>o.last).map(o=>({idx:o.idx, ry:y(o.last.v)})).sort((a,b)=>a.ry-b.ry);
@@ -401,7 +411,7 @@ function setupMulti({ pfx, P, labels, field, xfmt, inverted }){
   function rowEl(i){ const p=P[i], v=val(p);
     const row=document.createElement('label'); row.className='row'; row.dataset.on=checked[i]?'1':'0';
     row.innerHTML=`<input type="checkbox" ${checked[i]?'checked':''}><span class="swatch" style="background:${p.color}"></span>`+
-      `<span class="name">${p.name}</span><span class="val">${v==null?'–':v.toFixed(2)}</span>`;
+      `<span class="name">${p.name}${warnTag(p)}</span><span class="val">${v==null?'–':v.toFixed(2)}</span>`;
     row.querySelector('input').addEventListener('change',e=>{ checked[i]=e.target.checked; chart.setVisible(i,checked[i]); renderList(); });
     return row; }
   function section(title,total,idxs){ const box=document.createElement('div');
@@ -474,7 +484,7 @@ function setupRank(P){
     const tb=$('ranktbody');
     tb.innerHTML=rows.map((p,i)=>
       `<tr data-pid="${p.id}"><td class="rk num">${i+1}</td>`+
-      `<td class="nm"><span class="swatch" style="background:${p.color}"></span>${p.name}</td>`+
+      `<td class="nm"><span class="swatch" style="background:${p.color}"></span>${p.name}${warnTag(p)}</td>`+
       `<td class="utr">${cell(p,'utrS')}</td>`+
       `<td class="utr">${cell(p,'utrD')}</td>`+
       `<td class="utr">${cell(p,'wj')}</td>`+
@@ -482,7 +492,7 @@ function setupRank(P){
       `<td class="utr">${cell(p,'wtnD')}</td>`+
       `<td class="utr">${p.birthYear||'–'}</td></tr>`).join('');
     tb.querySelectorAll('tr').forEach(tr=> tr.onclick=()=> openModal(P.find(x=>x.id===tr.dataset.pid)));
-    $('rank-sub').textContent = (rows.length===P.length?`${P.length} 名球员`:`${rows.length} / ${P.length} 名球员`);
+    $('rank-sub').textContent = (rows.length===P.length?`${P.length} 名球员`:`${rows.length} / ${P.length} 名球员`)+' · UTR 除账号本人外每周一更新';
   }
   updateArrows(); renderBody();
 }
@@ -494,6 +504,9 @@ function boot(payload){
   const P = payload.multi.players.map((p,i)=>({ ...p, color: PALETTE[i % PALETTE.length] }));
 
   setupRank(P);
+  const bad = P.filter(p=>p.staleSince);
+  $('stalebar').hidden = !bad.length;
+  $('stalebar').textContent = bad.length ? `⚠ ${bad.length} 位球员的 UTR id 疑似已失效(账号被合并/换号),需要重新校准:`+bad.map(p=>`${p.name}(${p.id},自 ${p.staleSince})`).join('、') : '';
   const mChart = setupMulti({ pfx:'m', P, labels:payload.multi.labels, field:'data', xfmt:d=>d.slice(5), inverted:false });
   const wChart = setupMulti({ pfx:'w', P, labels:payload.wtnLabels||[], field:'wtnData', xfmt:d=>d.slice(5), inverted:true });
 
